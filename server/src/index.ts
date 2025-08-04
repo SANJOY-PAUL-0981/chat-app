@@ -14,18 +14,30 @@ interface User {
 let allSocket: User[] = []
 
 wss.on("connection", (socket) => { // socket argument is like req, res in express
-    
     socket.on("message", (message) => {
-        const parsedMessage = JSON.parse(message) // data sent over WebSocket is actually JSON string thats why we have to parse it in Obj
-        if(parsedMessage.type === "join"){
+        //@ts-ignore
+        const parsedMessage = JSON.parse(message)
+
+        if (parsedMessage.type === "join") {
             allSocket.push({
                 socket,
                 room: parsedMessage.payload.roomId
             })
         }
-    })
 
-    socket.on("disconnected", () => {
-        allSocket = allSocket.filter(x => x != socket)
+        if (parsedMessage.type === "chat") {
+            // Find which room the sender is in
+            const currentUserRoom = allSocket.find((x) => x.socket == socket)?.room
+
+            if (currentUserRoom) {
+                // Loop through all sockets in the same room
+                allSocket.forEach((user) => {
+                    if (user.room === currentUserRoom) {
+                        // Send the message to each user in the room
+                        user.socket.send(parsedMessage.payload.message);
+                    }
+                });
+            }
+        }
     })
 })
